@@ -1,16 +1,21 @@
+use std::sync::{Arc, Mutex};
+
 use crate::User;
 
 #[derive(Clone)]
 pub struct AppState {
-    users: Vec<User>,
+    users: Arc<Mutex<Vec<User>>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
-        Self { users: Vec::new() }
+        Self {
+            users: Arc::new(Mutex::new(Vec::new())),
+        }
     }
 
-    pub fn add(&mut self, u: User) {
-        self.users.push(u);
+    pub fn add(&self, u: User) {
+        let mut data = self.users.lock().expect("poisoned");
+        data.push(u)
     }
 }

@@ -35,7 +35,7 @@ async fn root() -> &'static str {
 #[debug_handler]
 async fn create_user(
     Query(_params): Query<HashMap<String, String>>,
-    State(mut state): State<AppState>,
+    State(state): State<AppState>,
     Json(payload): Json<CreateUser>,
 ) -> Response {
     let user = User::new(1337, payload.username);
