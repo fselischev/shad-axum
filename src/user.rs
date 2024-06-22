@@ -1,14 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
-pub struct CreateUser {
-    pub username: String,
-}
-
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct User {
-    id: u64,
-    username: String,
+    pub id: u64,
+    pub username: String,
 }
 
 impl User {
