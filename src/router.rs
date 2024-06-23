@@ -8,16 +8,20 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use axum_prometheus::PrometheusMetricLayer;
 
 use crate::{AppState, LogLayer, User};
 
 pub fn app() -> Router {
     let state = AppState::new();
+    let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     Router::new()
         .route("/", get(root))
         .route("/users", post(create_user))
         .layer(LogLayer::with_target("logger"))
+        .route("/metrics", get(|| async move { metric_handle.render() }))
+        .layer(prometheus_layer)
         .with_state(state)
 }
 

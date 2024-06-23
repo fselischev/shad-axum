@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.86"
 axum = { version = "0.7.5", features = ["macros"] }
+axum-prometheus = "0.6.1"
 http-body-util = "0.1.2"
 mime = "0.3.17"
 rand = "0.8.5"
