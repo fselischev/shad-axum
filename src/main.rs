@@ -2,18 +2,17 @@ use shad_axum::app;
 use tokio::signal;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    let listener = tokio::net::TcpListener::bind("localhost:3000")
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind("localhost:3000").await?;
 
-    tracing::info!("listening on {}", listener.local_addr().unwrap());
+    tracing::info!("listening on {}", listener.local_addr()?);
     axum::serve(listener, app())
         .with_graceful_shutdown(shutdown_signal())
-        .await
-        .unwrap();
+        .await?;
+
+    Ok(())
 }
 
 async fn shutdown_signal() {
