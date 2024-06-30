@@ -1,6 +1,7 @@
 use std::fmt;
 
 use tower::{Layer, Service};
+use tracing::info;
 
 #[derive(Clone)]
 pub struct LogLayer {
@@ -47,7 +48,7 @@ where
     }
 
     fn call(&mut self, req: Request) -> Self::Future {
-        println!("[{}]: request = {:?}", self.target, req);
+        info!("[{}]: request = {:?}", self.target, req);
         self.service.call(req)
     }
 }

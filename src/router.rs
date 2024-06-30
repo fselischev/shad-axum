@@ -9,6 +9,7 @@ use axum::{
     Json, Router,
 };
 use axum_prometheus::PrometheusMetricLayer;
+use tracing::{error, info, instrument, Level};
 
 use crate::{AppState, LogLayer, User};
 
@@ -19,14 +20,28 @@ pub fn app() -> Router {
     Router::new()
         .route("/", get(root))
         .route("/users", post(create_user))
-        .layer(LogLayer::with_target("logger"))
+        .layer(LogLayer::with_target("app"))
         .route("/metrics", get(|| async move { metric_handle.render() }))
         .layer(prometheus_layer)
         .with_state(state)
 }
 
-async fn root() -> &'static str {
-    "Hello, World!"
+#[instrument]
+async fn root(Query(params): Query<HashMap<String, String>>) -> String {
+    // can think of it like a expanding of instument macro but compatible in async context compatible
+    // let span = tracing::span!(Level::TRACE, "root");
+    // let _guard = span.enter();
+
+    match params.get("name") {
+        Some(name) => {
+            info!("done with name: {}", name);
+            format!("Hello, {}!", name)
+        }
+        None => {
+            error!("error with no name provided");
+            String::from("Please provide name as query parameter")
+        }
+    }
 }
 
 #[debug_handler]
