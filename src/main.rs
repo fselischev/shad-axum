@@ -8,7 +8,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use shad_axum::{AppState, CreateUser, LogLayer, User};
+use shad_axum::{AppState, LogLayer, User};
 
 #[tokio::main]
 async fn main() {
@@ -33,13 +33,12 @@ async fn root() -> &'static str {
     "Hello, World!"
 }
 
-#[debug_handler]
 async fn create_user(
-    Query(_params): Query<HashMap<String, String>>,
     State(state): State<AppState>,
-    Json(payload): Json<CreateUser>,
+    Query(_params): Query<HashMap<String, String>>,
+    Json(payload): Json<User>,
 ) -> Response {
-    let user = User::new(1337, payload.username);
+    let user = User::new(payload.id, payload.username);
     state.add(user.clone());
     (StatusCode::CREATED, Json(user)).into_response()
 }

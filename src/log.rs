@@ -13,6 +13,12 @@ impl LogLayer {
     }
 }
 
+#[derive(Clone)]
+pub struct LogService<S> {
+    target: &'static str,
+    service: S,
+}
+
 impl<S> Layer<S> for LogLayer {
     type Service = LogService<S>;
 
@@ -22,12 +28,6 @@ impl<S> Layer<S> for LogLayer {
             service: inner,
         }
     }
-}
-
-#[derive(Clone)]
-pub struct LogService<S> {
-    target: &'static str,
-    service: S,
 }
 
 impl<S, Request> Service<Request> for LogService<S>
@@ -47,7 +47,7 @@ where
     }
 
     fn call(&mut self, req: Request) -> Self::Future {
-        println!("[{}]: request = {:?}", self.target, req);
+        tracing::info!("[{}]: request = {:?}", self.target, req);
         self.service.call(req)
     }
 }
