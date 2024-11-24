@@ -1,44 +1,87 @@
 use std::collections::HashMap;
 
 use axum::{
-    debug_handler,
-    extract::{Query, State},
+    extract::Query,
     http::StatusCode,
-    response::{IntoResponse, Response},
+    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
-use shad_axum::{AppState, LogLayer, User};
+use shad_axum::User;
+use tracing::{debug, info, instrument, trace, Level};
+use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
-
-    let state = AppState::new();
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     let app = Router::new()
-        .route("/", get(root))
-        .route("/users", post(create_user))
-        .layer(LogLayer::with_target("logger"))
-        .with_state(state);
+        .route("/heartbeat", get(heartbeat))
+        .route(
+            "/user",
+            post(create_user)
+                .get(get_user)
+                .put(update_user)
+                .delete(delete_user),
+        )
+        .fallback(fallback);
 
-    let listener = tokio::net::TcpListener::bind("localhost:3000")
-        .await
-        .unwrap();
-    tracing::info!("listening on {}", listener.local_addr().unwrap());
+    let listener = tokio::net::TcpListener::bind("[::1]:3000").await.unwrap();
+    info!("Listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn root() -> &'static str {
-    "Hello, World!"
+#[instrument]
+async fn fallback() -> impl IntoResponse {
+    trace!("404: not found");
+    (StatusCode::NOT_FOUND, "Not Found :(")
 }
 
+#[instrument]
+async fn heartbeat() -> impl IntoResponse {
+    trace!("OK");
+    "heartbeat"
+}
+
+#[instrument]
 async fn create_user(
-    State(state): State<AppState>,
-    Query(_params): Query<HashMap<String, String>>,
+    Query(params): Query<HashMap<String, String>>,
     Json(payload): Json<User>,
-) -> Response {
-    let user = User::new(payload.id, payload.username);
-    state.add(user.clone());
-    (StatusCode::CREATED, Json(user)).into_response()
+) -> impl IntoResponse {
+    let mut name = payload.username;
+    if let Some(suffix) = params.get("suffix") {
+        trace!("Found suffix: {}", suffix);
+        name.push_str(suffix);
+    }
+
+    let user = User::new(name, payload.age);
+    debug!(?user, "User created");
+    (StatusCode::CREATED, Json(user))
+}
+
+#[instrument]
+async fn get_user(
+    Query(_params): Query<HashMap<String, String>>,
+    Json(_payload): Json<User>,
+) -> impl IntoResponse {
+    unimplemented!("no storage to extract from")
+}
+
+#[instrument]
+async fn update_user(
+    Query(_params): Query<HashMap<String, String>>,
+    Json(_payload): Json<User>,
+) -> impl IntoResponse {
+    unimplemented!("no storage to extract from")
+}
+
+#[instrument]
+async fn delete_user(
+    Query(_params): Query<HashMap<String, String>>,
+    Json(_payload): Json<User>,
+) -> impl IntoResponse {
+    unimplemented!("no storage to extract from")
 }
