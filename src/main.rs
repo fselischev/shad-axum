@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     extract::Query,
@@ -7,7 +7,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use shad_axum::User;
+use shad_axum::{AuthChecker, AuthLayer, User};
 use tracing::{debug, info, instrument, trace, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -27,7 +27,8 @@ async fn main() {
                 .put(update_user)
                 .delete(delete_user),
         )
-        .fallback(fallback);
+        .fallback(fallback)
+        .layer(AuthLayer::new());
 
     let listener = tokio::net::TcpListener::bind("[::1]:3000").await.unwrap();
     info!("Listening on {}", listener.local_addr().unwrap());
