@@ -1,14 +1,12 @@
-use std::{collections::HashMap, sync::Arc};
-
 use axum::{
-    extract::Query,
-    http::StatusCode,
-    response::IntoResponse,
     routing::{get, post},
-    Json, Router,
+    Router,
 };
-use shad_axum::{AuthChecker, AuthLayer, User};
-use tracing::{debug, info, instrument, trace, Level};
+use shad_axum::{
+    create_user, delete_user, fallback, get_user, heartbeat, update_user, AuthLayer, UsersState,
+};
+use tokio::signal;
+use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
@@ -16,7 +14,7 @@ async fn main() {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::TRACE)
         .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
 
     let app = Router::new()
         .route("/heartbeat", get(heartbeat))
@@ -28,61 +26,32 @@ async fn main() {
                 .delete(delete_user),
         )
         .fallback(fallback)
-        .layer(AuthLayer::new());
+        .layer(AuthLayer::new())
+        .with_state(UsersState::new());
 
     let listener = tokio::net::TcpListener::bind("[::1]:3000").await.unwrap();
     info!("Listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .expect("Serving failed");
 }
 
-#[instrument]
-async fn fallback() -> impl IntoResponse {
-    trace!("404: not found");
-    (StatusCode::NOT_FOUND, "Not Found :(")
-}
+async fn shutdown_signal() {
+    let sigint = async {
+        signal::ctrl_c().await.unwrap();
+    };
 
-#[instrument]
-async fn heartbeat() -> impl IntoResponse {
-    trace!("OK");
-    "heartbeat"
-}
+    #[cfg(unix)]
+    let sigterm = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
 
-#[instrument]
-async fn create_user(
-    Query(params): Query<HashMap<String, String>>,
-    Json(payload): Json<User>,
-) -> impl IntoResponse {
-    let mut name = payload.username;
-    if let Some(suffix) = params.get("suffix") {
-        trace!("Found suffix: {}", suffix);
-        name.push_str(suffix);
+    tokio::select! {
+        _ = sigint => {},
+        _ = sigterm => {},
     }
-
-    let user = User::new(name, payload.age);
-    debug!(?user, "User created");
-    (StatusCode::CREATED, Json(user))
-}
-
-#[instrument]
-async fn get_user(
-    Query(_params): Query<HashMap<String, String>>,
-    Json(_payload): Json<User>,
-) -> impl IntoResponse {
-    unimplemented!("no storage to extract from")
-}
-
-#[instrument]
-async fn update_user(
-    Query(_params): Query<HashMap<String, String>>,
-    Json(_payload): Json<User>,
-) -> impl IntoResponse {
-    unimplemented!("no storage to extract from")
-}
-
-#[instrument]
-async fn delete_user(
-    Query(_params): Query<HashMap<String, String>>,
-    Json(_payload): Json<User>,
-) -> impl IntoResponse {
-    unimplemented!("no storage to extract from")
 }

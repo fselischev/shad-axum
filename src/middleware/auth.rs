@@ -9,7 +9,7 @@ use tower::{Layer, Service};
 static VALID_TOKEN: &str = "VALID";
 
 #[derive(Clone)]
-pub struct AuthChecker;
+pub(crate) struct AuthChecker;
 
 impl AuthChecker {
     pub async fn check_token(&self, token: &str) -> Result<(), &'static str> {
