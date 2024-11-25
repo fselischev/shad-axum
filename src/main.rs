@@ -3,9 +3,9 @@ use axum::{
     Router,
 };
 use shad_axum::{
-    create_user, delete_user, fallback, get_user, heartbeat, update_user, AuthLayer, UsersState,
+    create_user, delete_user, fallback, get_user, heartbeat, shutdown_signal, update_user,
+    AuthLayer, UsersState,
 };
-use tokio::signal;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -35,23 +35,4 @@ async fn main() {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("Serving failed");
-}
-
-async fn shutdown_signal() {
-    let sigint = async {
-        signal::ctrl_c().await.unwrap();
-    };
-
-    #[cfg(unix)]
-    let sigterm = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    tokio::select! {
-        _ = sigint => {},
-        _ = sigterm => {},
-    }
 }
